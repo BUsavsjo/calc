@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <title>Excel Viewer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: 'Roboto', sans-serif; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    input { margin-right: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Excel-filter</h1>
+  <input type="file" id="file-input" />
+  <div>
+    <input type="text" id="serialFilter" placeholder="Serienummer">
+    <input type="text" id="contractFilter" placeholder="Kontraktsnummer">
+    <input type="text" id="productFilter" placeholder="Produkt">
+    <input type="text" id="yearFilter" placeholder="\u00c5r">
+    <input type="text" id="runtimeFilter" placeholder="L\u00f6ptid">
+    <input type="text" id="placeFilter" placeholder="Plats">
+  </div>
+  <table id="data-table">
+    <thead><tr id="header-row"></tr></thead>
+    <tbody></tbody>
+  </table>
+  <pre id="summary"></pre>
+  <script>
+    let data = [];
+    document.getElementById('file-input').addEventListener('change', handleFile, false);
+
+    function handleFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const workbook = XLSX.read(e.target.result, {type:'array'});
+        const sheetName = workbook.SheetNames.find(name => name.includes('Europa'));
+        if (!sheetName) return;
+        data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        renderTable(data);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function renderTable(rows) {
+      const tableBody = document.querySelector('#data-table tbody');
+      const headerRow = document.getElementById('header-row');
+      tableBody.innerHTML = '';
+      headerRow.innerHTML = '';
+      if (rows.length === 0) return;
+      Object.keys(rows[0]).forEach(key => {
+        const th = document.createElement('th');
+        th.textContent = key;
+        headerRow.appendChild(th);
+      });
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+        Object.values(row).forEach(val => {
+          const td = document.createElement('td');
+          td.textContent = val;
+          tr.appendChild(td);
+        });
+        tableBody.appendChild(tr);
+      });
+      updateSummary(rows);
+    }
+
+    const filterIds = ['serialFilter','contractFilter','productFilter','yearFilter','runtimeFilter','placeFilter'];
+    filterIds.forEach(id => document.getElementById(id).addEventListener('input', applyFilters));
+
+    function applyFilters() {
+      let filtered = data.slice();
+      const serial = document.getElementById('serialFilter').value.toLowerCase();
+      const contract = document.getElementById('contractFilter').value.toLowerCase();
+      const product = document.getElementById('productFilter').value.toLowerCase();
+      const year = document.getElementById('yearFilter').value.toLowerCase();
+      const runtime = document.getElementById('runtimeFilter').value.toLowerCase();
+      const place = document.getElementById('placeFilter').value.toLowerCase();
+      filtered = filtered.filter(row =>
+        (!serial || String(row['Serienummer']||'').toLowerCase().includes(serial)) &&
+        (!contract || String(row['Kontraktsnummer']||'').toLowerCase().includes(contract)) &&
+        (!product || String(row['Produkt']||'').toLowerCase().includes(product)) &&
+        (!year || String(row['\u00c5r']||'').toLowerCase().includes(year)) &&
+        (!runtime || String(row['L\u00f6ptid']||'').toLowerCase().includes(runtime)) &&
+        (!place || String(row['Plats']||'').toLowerCase().includes(place))
+      );
+      renderTable(filtered);
+    }
+
+    function updateSummary(rows) {
+      const summaryEl = document.getElementById('summary');
+      const totals = {};
+      rows.forEach(r => {
+        const year = r['\u00c5r'];
+        const cost = parseFloat(r['Totalkostnad']) || 0;
+        totals[year] = (totals[year] || 0) + cost;
+      });
+      const lines = Object.keys(totals).map(y => `${y}: ${totals[y].toFixed(2)}`);
+      summaryEl.textContent = lines.join('\n');
+    }
+  </script>
+</body>
+</html>
