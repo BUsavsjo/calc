@@ -15,14 +15,7 @@
 <body>
   <h1>Excel-filter</h1>
   <input type="file" id="file-input" />
-  <div>
-    <input type="text" id="serialFilter" placeholder="Serienummer">
-    <input type="text" id="contractFilter" placeholder="Kontraktsnummer">
-    <input type="text" id="productFilter" placeholder="Produkt">
-    <input type="text" id="yearFilter" placeholder="\u00c5r">
-    <input type="text" id="runtimeFilter" placeholder="L\u00f6ptid">
-    <input type="text" id="placeFilter" placeholder="Plats">
-  </div>
+  <div id="filters"></div>
   <table id="data-table">
     <thead><tr id="header-row"></tr></thead>
     <tbody></tbody>
@@ -41,6 +34,7 @@
         const sheetName = workbook.SheetNames.find(name => name.includes('Europa'));
         if (!sheetName) return;
         data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        generateFilters(Object.keys(data[0] || {}));
         renderTable(data);
       };
       reader.readAsArrayBuffer(file);
@@ -69,25 +63,31 @@
       updateSummary(rows);
     }
 
-    const filterIds = ['serialFilter','contractFilter','productFilter','yearFilter','runtimeFilter','placeFilter'];
-    filterIds.forEach(id => document.getElementById(id).addEventListener('input', applyFilters));
+    let filterInputs = {};
+
+    function generateFilters(keys) {
+      const container = document.getElementById('filters');
+      container.innerHTML = '';
+      filterInputs = {};
+      keys.forEach(key => {
+        const input = document.createElement('input');
+        const id = 'filter_' + key.replace(/\s+/g, '_');
+        input.id = id;
+        input.placeholder = key;
+        input.addEventListener('input', applyFilters);
+        container.appendChild(input);
+        filterInputs[key] = input;
+      });
+    }
 
     function applyFilters() {
       let filtered = data.slice();
-      const serial = document.getElementById('serialFilter').value.toLowerCase();
-      const contract = document.getElementById('contractFilter').value.toLowerCase();
-      const product = document.getElementById('productFilter').value.toLowerCase();
-      const year = document.getElementById('yearFilter').value.toLowerCase();
-      const runtime = document.getElementById('runtimeFilter').value.toLowerCase();
-      const place = document.getElementById('placeFilter').value.toLowerCase();
-      filtered = filtered.filter(row =>
-        (!serial || String(row['Serienummer']||'').toLowerCase().includes(serial)) &&
-        (!contract || String(row['Kontraktsnummer']||'').toLowerCase().includes(contract)) &&
-        (!product || String(row['Produkt']||'').toLowerCase().includes(product)) &&
-        (!year || String(row['\u00c5r']||'').toLowerCase().includes(year)) &&
-        (!runtime || String(row['L\u00f6ptid']||'').toLowerCase().includes(runtime)) &&
-        (!place || String(row['Plats']||'').toLowerCase().includes(place))
-      );
+      Object.keys(filterInputs).forEach(key => {
+        const val = filterInputs[key].value.toLowerCase();
+        if (val) {
+          filtered = filtered.filter(row => String(row[key] || '').toLowerCase().includes(val));
+        }
+      });
       renderTable(filtered);
     }
 
@@ -97,7 +97,9 @@
       rows.forEach(r => {
         const year = r['\u00c5r'];
         const cost = parseFloat(r['Totalkostnad']) || 0;
-        totals[year] = (totals[year] || 0) + cost;
+        if (year != null) {
+          totals[year] = (totals[year] || 0) + cost;
+        }
       });
       const lines = Object.keys(totals).map(y => `${y}: ${totals[y].toFixed(2)}`);
       summaryEl.textContent = lines.join('\n');
