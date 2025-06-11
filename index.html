@@ -23,6 +23,8 @@
   <pre id="summary"></pre>
   <script>
     let data = [];
+    let filterInputs = {};
+
     document.getElementById('file-input').addEventListener('change', handleFile, false);
 
     function handleFile(event) {
@@ -39,31 +41,6 @@
       };
       reader.readAsArrayBuffer(file);
     }
-
-    function renderTable(rows) {
-      const tableBody = document.querySelector('#data-table tbody');
-      const headerRow = document.getElementById('header-row');
-      tableBody.innerHTML = '';
-      headerRow.innerHTML = '';
-      if (rows.length === 0) return;
-      Object.keys(rows[0]).forEach(key => {
-        const th = document.createElement('th');
-        th.textContent = key;
-        headerRow.appendChild(th);
-      });
-      rows.forEach(row => {
-        const tr = document.createElement('tr');
-        Object.values(row).forEach(val => {
-          const td = document.createElement('td');
-          td.textContent = val;
-          tr.appendChild(td);
-        });
-        tableBody.appendChild(tr);
-      });
-      updateSummary(rows);
-    }
-
-    let filterInputs = {};
 
     function generateFilters(keys) {
       const container = document.getElementById('filters');
@@ -91,11 +68,34 @@
       renderTable(filtered);
     }
 
+    function renderTable(rows) {
+      const tableBody = document.querySelector('#data-table tbody');
+      const headerRow = document.getElementById('header-row');
+      tableBody.innerHTML = '';
+      headerRow.innerHTML = '';
+      if (rows.length === 0) return;
+      Object.keys(rows[0]).forEach(key => {
+        const th = document.createElement('th');
+        th.textContent = key;
+        headerRow.appendChild(th);
+      });
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+        Object.values(row).forEach(val => {
+          const td = document.createElement('td');
+          td.textContent = val;
+          tr.appendChild(td);
+        });
+        tableBody.appendChild(tr);
+      });
+      updateSummary(rows);
+    }
+
     function updateSummary(rows) {
       const summaryEl = document.getElementById('summary');
       const totals = {};
       rows.forEach(r => {
-        const year = r['\u00c5r'];
+        const year = r['År'];
         const cost = parseFloat(r['Totalkostnad']) || 0;
         if (year != null) {
           totals[year] = (totals[year] || 0) + cost;
